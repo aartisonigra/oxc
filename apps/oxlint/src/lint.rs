@@ -1257,6 +1257,13 @@ mod test {
     }
 
     #[test]
+    fn test_nested_config_single_file_path() {
+        // Issue #22867: nested config must apply when linting a single file path from the repo root.
+        let args = &["package1-empty-config/console.ts"];
+        Tester::new().with_cwd("fixtures/cli/nested_config".into()).test_and_snapshot(args);
+    }
+
+    #[test]
     fn test_nested_config_subdirectory_as_cwd() {
         let args = &[];
         Tester::new()

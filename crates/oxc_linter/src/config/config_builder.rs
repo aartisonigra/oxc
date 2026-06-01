@@ -463,6 +463,59 @@ impl ConfigStoreBuilder {
     ///
     /// Returns [`ConfigBuilderError`] if the configured rules or overrides
     /// cannot be resolved.
+    pub fn with_filters(mut self, filters: Vec<LintFilter>) -> Self {
+    for filter in filters {
+        // આપણે filter.rs માં જે હેલ્પર બનાવ્યા તેનો ઉપયોગ કરીએ
+        let is_category = filter.is_category_filter() || filter.is_all_filter();
+
+       
+        if is_category {
+           
+            self.apply_category_filter(filter);
+        } else {
+            
+            self.apply_filter(filter);
+        }
+    }
+    self
+}
+
+fn apply_filter(&mut self, filter: LintFilter) {
+        let (severity, kind) = filter.into();
+        match kind {
+            LintFilterKind::All => {
+                for rule in &mut self.rules.values_mut() {
+                    *rule = severity;
+                }
+            }
+            LintFilterKind::Category(category) => {
+                for rule in RULES.iter().filter(|r| r.category() == category) {
+                    self.rules.insert(rule.clone(), severity);
+                }
+            }
+            LintFilterKind::Rule(plugin, name) | LintFilterKind::Generic(name) => {
+                if let Some(rule) = self.find_rule(&plugin, &name) {
+                    self.rules.insert(rule, severity);
+                }
+            }
+        }
+    }
+
+    fn apply_category_filter(&mut self, filter: LintFilter) {
+        let (severity, kind) = filter.into();
+        if let LintFilterKind::Category(category) = kind {
+            for rule in RULES.iter().filter(|r| r.category() == category) {
+                // અસલી ફિક્સ: જો રૂલ પહેલેથી `self.rules` માં છે (એટલે કે config.json માં છે),
+                // તો તેને બદલશો નહીં.
+                self.rules.entry(rule.clone()).or_insert(severity);
+            }
+        } else if let LintFilterKind::All = kind {
+            for rule in RULES.iter() {
+                self.rules.entry(rule.clone()).or_insert(severity);
+            }
+        }
+    }
+    
     pub fn build(
         mut self,
         external_plugin_store: &mut ExternalPluginStore,
@@ -541,20 +594,21 @@ impl ConfigStoreBuilder {
         Ok(ResolvedOxlintOverrides::new(resolved))
     }
 
-    /// Warn for all correctness rules in the given set of plugins.
-    fn warn_correctness(plugins: LintPlugins) -> FxHashMap<RuleEnum, AllowWarnDeny> {
-        RULES
-            .iter()
-            .filter(|rule| {
-                // NOTE: this logic means there's no way to disable ESLint
-                // correctness rules. I think that's fine for now.
-                rule.category() == RuleCategory::Correctness
-                    && LintPlugins::try_from(rule.plugin_name())
-                        .is_ok_and(|plugin_flag| plugins.contains(plugin_flag))
-            })
-            .map(|rule| (rule.clone(), AllowWarnDeny::Warn))
-            .collect()
-    }
+  fn warn_correctness(plugins: LintPlugins) -> FxHashMap<RuleEnum, AllowWarnDeny> {
+    RULES
+        .iter()
+        .filter(|rule| {
+            
+            let is_default_category = rule.category() == RuleCategory::Correctness 
+                                   || rule.category() == RuleCategory::Perf;
+
+            is_default_category
+                && LintPlugins::try_from(rule.plugin_name())
+                    .is_ok_and(|plugin_flag| plugins.contains(plugin_flag))
+        })
+        .map(|rule| (rule.clone(), AllowWarnDeny::Warn))
+        .collect()
+}
 
     /// # Panics
     /// This function will panic if the `oxlintrc` is not valid JSON.

@@ -373,14 +373,11 @@ impl ConfigStore {
     fn get_nearest_config(&self, path: &Path) -> Option<&Config> {
         // TODO(perf): should we cache the computed nearest config for every directory,
         // so we don't have to recompute it for every file?
-        let mut current = path.parent();
-        while let Some(dir) = current {
-            if let Some(config) = self.nested_configs.get(dir) {
-                return Some(config);
-            }
-            current = dir.parent();
-        }
-        None
+        self.nested_configs
+            .iter()
+            .filter(|(dir, _)| super::path_utils::is_path_prefix(dir, path))
+            .max_by_key(|(dir, _)| super::path_utils::normalize_lexical_path(dir).components().count())
+            .map(|(_, config)| config)
     }
 
     pub(crate) fn resolve_plugin_rule_names(
@@ -415,8 +412,8 @@ mod test {
         },
         rule::Rule,
         rules::{
-            EslintCurly, EslintNoUnusedVars, ReactJsxFilenameExtension, TypescriptNoExplicitAny,
-            TypescriptNoMisusedPromises,
+            EslintCurly, EslintNoConsole, EslintNoUnusedVars, ReactJsxFilenameExtension,
+            TypescriptNoExplicitAny, TypescriptNoMisusedPromises,
         },
     };
 
@@ -1051,6 +1048,35 @@ mod test {
             jsx_filename_rule.is_none(),
             "jsx-filename-extension should remain disabled (not re-enabled by categories)"
         );
+    }
+
+    #[test]
+    fn test_get_nearest_config_matches_lexically_equivalent_paths() {
+        let base_config = LintConfig::default();
+        let base = Config::new(
+            vec![(RuleEnum::EslintNoConsole(EslintNoConsole::default()), AllowWarnDeny::Deny)],
+            vec![],
+            OxlintCategories::default(),
+            base_config.clone(),
+            ResolvedOxlintOverrides::new(vec![]),
+        );
+        let nested = Config::new(
+            vec![],
+            vec![],
+            OxlintCategories::default(),
+            base_config,
+            ResolvedOxlintOverrides::new(vec![]),
+        );
+
+        let mut nested_configs = FxHashMap::default();
+        nested_configs.insert(
+            PathBuf::from("/repo/packages/foo"),
+            nested,
+        );
+
+        let store = ConfigStore::new(base, nested_configs, ExternalPluginStore::default());
+        let resolved = store.resolve(Path::new("/repo/packages/foo/./bar.ts"));
+        assert!(resolved.rules.is_empty());
     }
 
     #[test]

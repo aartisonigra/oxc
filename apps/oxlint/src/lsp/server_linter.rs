@@ -335,7 +335,12 @@ impl ServerLinterBuilder {
             }
         }
 
-        build_nested_configs(configs, nested_ignore_patterns, Some(extended_paths))
+        build_nested_configs(
+            configs,
+            nested_ignore_patterns,
+            Some(extended_paths),
+            Some(root_path),
+        )
     }
 
     #[expect(clippy::filetype_is_file)]

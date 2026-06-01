@@ -70,6 +70,7 @@ pub use crate::{
     config::{
         Config, ConfigBuilderError, ConfigStore, ConfigStoreBuilder, ESLintRule, LintIgnoreMatcher,
         LintPlugins, Oxlintrc, ResolvedLinterState,
+        path_utils::{is_path_prefix, normalize_lexical_path, paths_equal, resolve_absolute_path},
     },
     context::{ContextSubHost, ContextSubHostOptions, LintContext},
     external_linter::{
@@ -605,10 +606,7 @@ impl Linter {
         // This ensures that we never have too many allocators in play at once, avoiding OOM.
     }
 
-    /// Convert spans to UTF-16, write metadata, call external linter, and process diagnostics.
-    ///
-    /// This is the common code path shared by both `run_external_rules` and
-    /// `clone_into_fixed_size_allocator_and_run_external_rules`.
+    
     #[cfg(all(target_pointer_width = "64", target_endian = "little"))]
     fn convert_and_call_external_linter(
         &self,

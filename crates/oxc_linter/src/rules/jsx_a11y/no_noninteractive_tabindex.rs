@@ -50,6 +50,15 @@ impl Default for NoNoninteractiveTabindexConfig {
     }
 }
 
+/// Default configuration exported for docs: shows the defaults for `roles`, `tags`, and `allowExpressionValues`.
+fn default_no_noninteractive_tabindex_config() -> serde_json::Value {
+    serde_json::json!({
+        "roles": ["tabpanel"],
+        "tags": [],
+        "allowExpressionValues": true
+    })
+}
+
 declare_oxc_lint!(
     /// ### What it does
     ///
@@ -87,6 +96,12 @@ declare_oxc_lint!(
     /// <div role="article" tabIndex="-1" />
     /// <article tabIndex="-1" />
     /// ```
+    ///
+    /// ### Default configuration
+    ///
+    /// - `roles`: ["tabpanel"]
+    /// - `tags`: []
+    /// - `allowExpressionValues`: `true`
     NoNoninteractiveTabindex,
     jsx_a11y,
     correctness,

@@ -53,6 +53,17 @@ impl LintFilter {
     pub fn kind(&self) -> &LintFilterKind {
         &self.kind
     }
+
+    // --- ISSUE #21965 FIX: હેલ્પર ફંક્શન્સ ---
+    /// ચેક કરે છે કે શું આ ફિલ્ટર આખી કેટેગરી (correctness, style વગેરે) માટે છે.
+    pub fn is_category_filter(&self) -> bool {
+        matches!(self.kind, LintFilterKind::Category(_))
+    }
+
+    /// ચેક કરે છે કે શું આ ફિલ્ટર '-A all' જેવું છે.
+    pub fn is_all_filter(&self) -> bool {
+        matches!(self.kind, LintFilterKind::All)
+    }
 }
 
 impl Default for LintFilter {
@@ -99,8 +110,6 @@ impl LintFilterKind {
         }
 
         if filter.contains('/') {
-            // this is an unfortunate amount of code duplication, but it needs to be done for
-            // `filter` to live long enough to avoid a String allocation for &'static str
             let (plugin, rule) = match filter {
                 Cow::Borrowed(filter) => {
                     let mut parts = filter.splitn(2, '/');
